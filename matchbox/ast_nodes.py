@@ -1,13 +1,75 @@
+from dataclasses import dataclass
 from rich.console import Console
 
 console = Console()
 
 
+@dataclass
+class MatchContext:
+    """マッチング処理中に引き回すコンテキスト情報"""
+
+    text: str  # 現在のマッチング対象テキスト
+    original_text: str  # 元の完全なテキスト
+    trace: bool = False
+    depth: int = 0
+
+    def advance(self, n=1):
+        """テキストをn文字進めた新しいコンテキストを返す"""
+        return MatchContext(
+            text=self.text[n:],
+            original_text=self.original_text,
+            trace=self.trace,
+            depth=self.depth + 1,
+        )
+
+    def next_depth(self):
+        return MatchContext(
+            text=self.text,
+            original_text=self.original_text,
+            trace=self.trace,
+            depth=self.depth + 1,
+        )
+
+
 class Node:
     """ASTノードの基底クラス"""
 
-    def match(self, text, trace=False, depth=0):
+    def match(self, ctx: MatchContext):
         raise NotImplementedError
+
+
+# ----------------------------------------------------------------------
+# アンカー (^, $)
+# ----------------------------------------------------------------------
+class AnchorNode(Node):
+    def __init__(self, anchor_type):
+        if anchor_type not in ("^", "$"):
+            raise ValueError(f"Invalid anchor type: {anchor_type}")
+        self.anchor_type = anchor_type
+
+    def match(self, ctx: MatchContext):
+        pad = "  " * ctx.depth
+        if ctx.trace:
+            console.print(
+                f"{pad}[blue][Anchor('{self.anchor_type}')][/blue] text='[dim]{ctx.text}[/dim]'"
+            )
+
+        # アンカーは文字を消費しない
+        if self.anchor_type == "^" and ctx.text == ctx.original_text:
+            if ctx.trace:
+                console.print(f"{pad}[green]✔️ Anchor start matches[/green]")
+            return [ctx.text]  # 成功、テキストはそのまま
+        elif self.anchor_type == "$" and ctx.text == "":
+            if ctx.trace:
+                console.print(f"{pad}[green]✔️ Anchor end matches[/green]")
+            return [ctx.text]
+        else:
+            if ctx.trace:
+                console.print(f"{pad}[red]❌ FAIL (Anchor condition not met)[/red]")
+            return None
+
+    def __repr__(self):
+        return f"Anchor({self.anchor_type!r})"
 
 
 # ----------------------------------------------------------------------
@@ -17,28 +79,28 @@ class CharNode(Node):
     def __init__(self, char):
         self.char = char
 
-    def match(self, text, trace=False, depth=0):
-        pad = "  " * depth
-        if trace:
+    def match(self, ctx: MatchContext):
+        pad = "  " * ctx.depth
+        if ctx.trace:
             console.print(
-                f"{pad}[blue][Char('{self.char}')][/blue] text='[dim]{text}[/dim]'"
+                f"{pad}[blue][Char('{self.char}')][/blue] text='[dim]{ctx.text}[/dim]'"
             )
 
-        if not text:
-            if trace:
+        if not ctx.text:
+            if ctx.trace:
                 console.print(f"{pad}[red]❌ FAIL (no input)[/red]")
             return None
 
-        if self.char == "." or text[0] == self.char:
-            if trace:
+        if self.char == "." or ctx.text[0] == self.char:
+            if ctx.trace:
                 console.print(
-                    f"{pad}[yellow]→ consumes '{text[0]}'[/yellow] -> rest='[dim]{text[1:]}[/dim]'"
+                    f"{pad}[yellow]→ consumes '{ctx.text[0]}'[/yellow] -> rest='[dim]{ctx.text[1:]}[/dim]'"
                 )
-            return [text[1:]]
+            return [ctx.text[1:]]
         else:
-            if trace:
+            if ctx.trace:
                 console.print(
-                    f"{pad}[red]❌ FAIL (expected '{self.char}', got '{text[0]}')[/red]"
+                    f"{pad}[red]❌ FAIL (expected '{self.char}', got '{ctx.text[0]}')[/red]"
                 )
             return None
 
@@ -54,20 +116,20 @@ class RepeatNode(Node):
         self.node = node
         self.op = op
 
-    def match(self, text, trace=False, depth=0):
-        pad = "  " * depth
-        if trace:
+    def match(self, ctx: MatchContext):
+        pad = "  " * ctx.depth
+        if ctx.trace:
             console.print(
-                f"{pad}[blue][Repeat {self.op}][/blue] start text='[dim]{text}[/dim]'"
+                f"{pad}[blue][Repeat {self.op}][/blue] start text='[dim]{ctx.text}[/dim]'"
             )
 
-        results = [text]
-        current = [text]
+        results = [ctx.text]
+        current = [ctx.text]
 
         while current:
             new = []
             for t in current:
-                nexts = self.node.match(t, trace, depth + 1)
+                nexts = self.node.match(ctx.next_depth().advance(len(ctx.text) - len(t)))
                 if nexts:
                     for n in nexts:
                         if n not in results:
@@ -81,7 +143,7 @@ class RepeatNode(Node):
         elif self.op == "?":
             results = results[:2]
 
-        if trace:
+        if ctx.trace:
             for r in results:
                 console.print(
                     f"{pad}[green]✔️ Repeat result rest='[dim]{r}[/dim]'[/green]"
@@ -101,20 +163,21 @@ class ConcatNode(Node):
         self.left = left
         self.right = right
 
-    def match(self, text, trace=False, depth=0):
-        pad = "  " * depth
-        if trace:
-            console.print(f"{pad}[blue][Concat][/blue] start text='[dim]{text}[/dim]'")
+    def match(self, ctx: MatchContext):
+        pad = "  " * ctx.depth
+        if ctx.trace:
+            console.print(f"{pad}[blue][Concat][/blue] start text='[dim]{ctx.text}[/dim]'")
 
-        left_res = self.left.match(text, trace, depth + 1)
+        left_res = self.left.match(ctx.next_depth())
         results = []
         if left_res:
             for rem in left_res:
-                right_res = self.right.match(rem, trace, depth + 1)
+                new_ctx = ctx.next_depth().advance(len(ctx.text) - len(rem))
+                right_res = self.right.match(new_ctx)
                 if right_res:
                     results.extend(right_res)
 
-        if trace:
+        if ctx.trace:
             for r in results:
                 console.print(
                     f"{pad}[green]✔️ Concat result rest='[dim]{r}[/dim]'[/green]"
@@ -134,13 +197,13 @@ class OrNode(Node):
         self.left = left
         self.right = right
 
-    def match(self, text, trace=False, depth=0):
-        pad = "  " * depth
-        if trace:
-            console.print(f"{pad}[blue][Or][/blue] start text='[dim]{text}[/dim]'")
+    def match(self, ctx: MatchContext):
+        pad = "  " * ctx.depth
+        if ctx.trace:
+            console.print(f"{pad}[blue][Or][/blue] start text='[dim]{ctx.text}[/dim]'")
 
-        left_res = self.left.match(text, trace, depth + 1)
-        right_res = self.right.match(text, trace, depth + 1)
+        left_res = self.left.match(ctx.next_depth())
+        right_res = self.right.match(ctx.next_depth())
 
         results = []
         if left_res:
@@ -148,7 +211,7 @@ class OrNode(Node):
         if right_res:
             results.extend(right_res)
 
-        if trace:
+        if ctx.trace:
             for r in results:
                 console.print(f"{pad}[green]✔️ Or result rest='[dim]{r}[/dim]'[/green]")
 
