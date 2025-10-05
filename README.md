@@ -115,3 +115,36 @@ To run the test suite, install the dependencies and run `pytest`.
 pip install -r requirements.txt
 pytest
 ```
+
+---
+
+## Code Quality
+
+This project uses `black` for code formatting and `ruff` for linting to ensure code quality and consistency.
+
+### Running Manually
+
+```bash
+# Format code with black
+.venv/bin/black .
+
+# Lint and auto-fix with ruff
+.venv/bin/ruff check --fix .
+```
+
+### Configuration
+
+Currently, both tools run with their default settings as there is no specific configuration file.
+
+To customize their behavior, you can create a `pyproject.toml` file in the project root. For example:
+
+```toml
+# pyproject.toml
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I"] # Enable specific linting rules
+```
