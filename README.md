@@ -53,11 +53,6 @@ Use the `--trace` option to visualize the backtracking process of the AST evalua
 python -m matchbox "a(b|c)d" "acd" --trace
 ```
 
-**Example Output:**
-
-![Trace Output](https://user-images.githubusercontent.com/3455792/236133122-0a58a99a-8a5c-41c4-a399-4b81d1ed3837.png)
-
-
 ### 2. Interactive Mode
 
 You can also run an interactive prompt.
