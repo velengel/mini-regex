@@ -89,8 +89,8 @@ def test_anchors_parsing():
         "a)b",
         "a((b)",
         "a**",
-        "^a^", # Invalid anchor position
-        "a$b", # Invalid anchor position
+        "^a^",  # Invalid anchor position
+        "a$b",  # Invalid anchor position
     ],
 )
 def test_invalid_syntax(pattern):

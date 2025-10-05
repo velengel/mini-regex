@@ -47,8 +47,10 @@ def parse(pattern: str):
 
     def parse_concat():
         if not peek() or peek().type in {"|", ")", "*", "+", "?"}:
-            raise SyntaxError(f"Unexpected start of sub-expression: {peek().type if peek() else 'None'}")
-        
+            raise SyntaxError(
+                f"Unexpected start of sub-expression: {peek().type if peek() else 'None'}"
+            )
+
         node = parse_atom()
         while peek() and peek().type not in {"|", ")", "$"}:
             node = ConcatNode(node, parse_atom())
@@ -69,12 +71,12 @@ def parse(pattern: str):
         if peek() and peek().type == "^":
             nodes.append(AnchorNode(consume().type))
 
-        if peek() and peek().type != "$": # Don't parse if it's just `^$`
+        if peek() and peek().type != "$":  # Don't parse if it's just `^$`
             nodes.append(parse_expr())
 
         if peek() and peek().type == "$":
             nodes.append(AnchorNode(consume().type))
-        
+
         if not nodes:
             raise SyntaxError("Pattern cannot be empty")
 
@@ -88,9 +90,11 @@ def parse(pattern: str):
             return ast
 
     if not tokens:
-        return CharNode("") # Match empty string for empty pattern
+        return CharNode("")  # Match empty string for empty pattern
 
     ast = parse_toplevel()
     if pos != len(tokens):
-        raise SyntaxError(f"Extra tokens after parse: {"".join(t.value for t in tokens[pos:])}")
+        raise SyntaxError(
+            f"Extra tokens after parse: {"".join(t.value for t in tokens[pos:])}"
+        )
     return ast

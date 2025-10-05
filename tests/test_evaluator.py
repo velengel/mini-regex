@@ -68,9 +68,9 @@ def test_repeaters(pattern, text, expected):
     [
         # Anchors (^, $)
         ("^a", "a", True),
-        ("^a", "abc", False), # fullmatch requires entire string
+        ("^a", "abc", False),  # fullmatch requires entire string
         ("c$", "c", True),
-        ("c$", "abc", False), # fullmatch requires entire string
+        ("c$", "abc", False),  # fullmatch requires entire string
         ("^abc$", "abc", True),
         ("^abc$", "xabc", False),
         ("^abc$", "abcx", False),
@@ -124,10 +124,12 @@ def test_invalid_backtracking_patterns(pattern):
     with pytest.raises(SyntaxError):
         # We only need to parse, not match
         from matchbox.parser import parse
+
         parse(pattern)
 
 
 # --- search tests ---
+
 
 @pytest.mark.parametrize(
     "pattern, text, expected",
@@ -135,7 +137,7 @@ def test_invalid_backtracking_patterns(pattern):
         ("b", "abc", True),  # Middle
         ("a", "abc", True),  # Start
         ("c", "abc", True),  # End
-        ("x", "abc", False), # No match
+        ("x", "abc", False),  # No match
         ("a*b", "xxaaabyy", True),
         ("a+b", "xxabyy", True),
         ("a+b", "xxbyy", False),

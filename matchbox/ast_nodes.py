@@ -129,7 +129,9 @@ class RepeatNode(Node):
         while current:
             new = []
             for t in current:
-                nexts = self.node.match(ctx.next_depth().advance(len(ctx.text) - len(t)))
+                nexts = self.node.match(
+                    ctx.next_depth().advance(len(ctx.text) - len(t))
+                )
                 if nexts:
                     for n in nexts:
                         if n not in results:
@@ -166,7 +168,9 @@ class ConcatNode(Node):
     def match(self, ctx: MatchContext):
         pad = "  " * ctx.depth
         if ctx.trace:
-            console.print(f"{pad}[blue][Concat][/blue] start text='[dim]{ctx.text}[/dim]'")
+            console.print(
+                f"{pad}[blue][Concat][/blue] start text='[dim]{ctx.text}[/dim]'"
+            )
 
         left_res = self.left.match(ctx.next_depth())
         results = []
